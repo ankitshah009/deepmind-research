@@ -16,60 +16,47 @@
 # ============================================================================
 """Run an experiment."""
 
+import os
+
 from absl import app
 from absl import flags
 
-import numpy as np
 import tensorflow.compat.v1 as tf
+import tensorflow_hub as hub
 
 from option_keyboard import configs
 from option_keyboard import dqn_agent
 from option_keyboard import environment_wrappers
 from option_keyboard import experiment
-from option_keyboard import keyboard_agent
+from option_keyboard import keyboard_utils
 from option_keyboard import scavenger
+from option_keyboard import smart_module
 
 FLAGS = flags.FLAGS
 flags.DEFINE_integer("num_episodes", 10000, "Number of training episodes.")
 flags.DEFINE_integer("num_pretrain_episodes", 20000,
                      "Number of pretraining episodes.")
-
-
-def _train_keyboard(num_episodes):
-  """Train an option keyboard."""
-  env_config = configs.get_pretrain_config()
-  env = scavenger.Scavenger(**env_config)
-  env = environment_wrappers.EnvironmentWithLogging(env)
-
-  agent = keyboard_agent.Agent(
-      obs_spec=env.observation_spec(),
-      action_spec=env.action_spec(),
-      policy_weights=np.array([
-          [1.0, 0.0],
-          [0.0, 1.0],
-      ]),
-      network_kwargs=dict(
-          output_sizes=(64, 128),
-          activate_final=True,
-      ),
-      epsilon=0.1,
-      additional_discount=0.9,
-      batch_size=10,
-      optimizer_name="AdamOptimizer",
-      optimizer_kwargs=dict(learning_rate=3e-4,))
-
-  experiment.run(env, agent, num_episodes=num_episodes)
-
-  return agent
+flags.DEFINE_integer("report_every", 200,
+                     "Frequency at which metrics are reported.")
+flags.DEFINE_string("keyboard_path", None, "Path to pretrained keyboard model.")
+flags.DEFINE_string("output_path", None, "Path to write out training curves.")
 
 
 def main(argv):
   del argv
 
   # Pretrain the keyboard and save a checkpoint.
-  pretrain_agent = _train_keyboard(num_episodes=FLAGS.num_pretrain_episodes)
-  keyboard_ckpt_path = "/tmp/option_keyboard/keyboard.ckpt"
-  pretrain_agent.export(keyboard_ckpt_path)
+  if FLAGS.keyboard_path:
+    keyboard_path = FLAGS.keyboard_path
+  else:
+    with tf.Graph().as_default():
+      export_path = "/tmp/option_keyboard/keyboard"
+      _ = keyboard_utils.create_and_train_keyboard(
+          num_episodes=FLAGS.num_pretrain_episodes, export_path=export_path)
+      keyboard_path = os.path.join(export_path, "tfhub")
+
+  # Load the keyboard.
+  keyboard = smart_module.SmartModuleImport(hub.Module(keyboard_path))
 
   # Create the task environment.
   base_env_config = configs.get_task_config()
@@ -80,11 +67,11 @@ def main(argv):
   additional_discount = 0.9
   env = environment_wrappers.EnvironmentWithKeyboard(
       env=base_env,
-      keyboard=pretrain_agent.keyboard,
-      keyboard_ckpt_path=keyboard_ckpt_path,
+      keyboard=keyboard,
+      keyboard_ckpt_path=None,
       n_actions_per_dim=3,
       additional_discount=additional_discount,
-      call_and_return=True)
+      call_and_return=False)
 
   # Create the player agent.
   agent = dqn_agent.Agent(
@@ -100,7 +87,13 @@ def main(argv):
       optimizer_name="AdamOptimizer",
       optimizer_kwargs=dict(learning_rate=3e-4,))
 
-  experiment.run(env, agent, num_episodes=FLAGS.num_episodes)
+  _, ema_returns = experiment.run(
+      env,
+      agent,
+      num_episodes=FLAGS.num_episodes,
+      report_every=FLAGS.report_every)
+  if FLAGS.output_path:
+    experiment.write_returns_to_file(FLAGS.output_path, ema_returns)
 
 
 if __name__ == "__main__":
