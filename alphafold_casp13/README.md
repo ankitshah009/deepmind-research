@@ -1,7 +1,9 @@
-# AlphaFold
+# AlphaFold 1
 
-This package provides an implementation of the contact prediction network,
-associated model weights and CASP13 dataset as published in Nature.
+This package provides an implementation of the contact prediction network used
+in AlphaFold 1, associated model weights and CASP13 dataset as used for CASP13
+(2018) and published in Nature. This is completely different code from that used
+in AlphaFold 2 which was used in CASP14 (2020).
 
 Any publication that discloses findings arising from using this source code must
 cite *Improved protein structure prediction using potentials from deep learning*
@@ -340,12 +342,16 @@ def extract_hmm_profile(hhm_file, sequence, asterisks_replace=0.0):
       # The first and the last values in line_values are metadata, skip them.
       for j, t in enumerate(line_values[2:-1]):
         aa_profile[count_aa, j] = (
-            2**(-float(t) / 1000.) if t != '*' else asterisks_replace)
+            2**(-float(t) / 1000.0) if t != '*' else asterisks_replace)
       count_aa += 1
     elif len(line_values) == 10:
       for j, t in enumerate(line_values):
-        gap_profile[count_gap, j] = (
-            2**(-float(t) / 1000.) if t != '*' else asterisks_replace)
+        if j <= 6:
+          gap_profile[count_gap, j] = (
+              2**(-float(t) / 1000.0) if t != '*' else asterisks_replace)
+        else:
+          # Neff_M, Neff_I, and Neff_D are given in units of 0.001.
+          gap_profile[count_gap, j] = float(t) / 1000.0
       count_gap += 1
     elif not line_values:
       pass

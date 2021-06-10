@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright 2020 Deepmind Technologies Limited.
+# Copyright 2021 Deepmind Technologies Limited.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@
 # limitations under the License.
 set -e
 
-python3 -m venv nfnets_venv
-source nfnets_venv/bin/activate
-pip3 install --upgrade setuptools wheel
+python3 -m venv /tmp/nfnets_venv
+source /tmp/nfnets_venv/bin/activate
+pip3 install --upgrade pip setuptools wheel
 pip3 install -r nfnets/requirements.txt
 
 python3 -m nfnets.test

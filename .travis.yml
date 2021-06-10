@@ -8,17 +8,27 @@ python:
   - "3.6"
 env:
   matrix:
-    - PROJECT="tvt"
-    - PROJECT="cs_gan"
+    - PROJECT="adversarial_robustness"
+    # - PROJECT="cs_gan"  # TODO(b/184845450): Fix and re-enable
+    - PROJECT="gated_linear_networks"
+    - PROJECT="geomancer"
+    - PROJECT="hierarchical_probabilistic_unet"
     - PROJECT="iodine"
-    - PROJECT="transporter"
-    - PROJECT="polygen"
+    - PROJECT="kfac_ferminet_alpha"
     - PROJECT="learning_to_simulate"
-    - PROJECT="avae"
+    - PROJECT="nfnets"
+    - PROJECT="option_keyboard"
+    # - PROJECT="polygen"  # TODO(b/184847339): Fix and re-enable
+    # - PROJECT="scratchgan"  # TODO(b/184856293): Fix and enable
+    - PROJECT="sketchy"
+    - PROJECT="transporter"
+    - PROJECT="tvt"
+    # - PROJECT="unrestricted_advx"  # TODO(b/184862249): Fix and enable
+    - PROJECT="unsupervised_adversarial_training"
 before_script:
-  - sudo apt-get update -qq
   - pip install --upgrade pip
   - pip install --upgrade virtualenv
+  - pip install --upgrade wheel
 script:
   - ./$PROJECT/run.sh
 
